@@ -1,0 +1,122 @@
+---
+title: "Project 2"
+author: "Brian Weinfeld"
+date: "April 6, 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+```
+
+```{r}
+raw.data <- readxl::read_excel('./StudentData.xlsx') 
+```
+
+- 4 values with missing response
+- the rest of the missing data is small enough and spread out enough to impute
+
+```{r}
+raw.data %>%
+  VIM::aggr(col=c('navyblue', 'yellow'),
+    numbers=TRUE, sortVars=TRUE,
+    labels=names(raw.data), cex.axis=.7,
+    gap=3, ylab=c('Missing Data', 'Pattern'), combined=TRUE
+  )
+```
+
+- separate answers out
+
+```{r}
+ph <- raw.data$PH
+to.impute <- raw.data %>%
+  select(-PH) %>%
+  mutate(`Brand Code` = as.factor(`Brand Code`))
+```
+
+- clean column names, to lowercase and remove spaces
+
+```{r}
+clean <- function(name){
+  name <- gsub('\\s', '', name)
+  name <- tolower(name)
+  return(name)
+}
+
+to.impute <- to.impute %>%
+  rename_all(funs(clean(.)))
+```
+
+- impute data with mice
+
+```{r}
+imputed.data <- mice::mice(to.impute, m=5, maxit=10, seed=123, printFlag=FALSE)
+completed.data <- cbind(ph, mice::complete(imputed.data, 1)) 
+```
+
+- drop 4 cases missing response variable
+
+```{r}
+completed.data <- completed.data %>%
+  filter(complete.cases(.)) 
+```
+
+- verify all data imputed and present
+
+```{r}
+completed.data %>%
+  VIM::aggr(col=c('navyblue', 'yellow'),
+    numbers=TRUE, sortVars=TRUE,
+    labels=names(completed.data), cex.axis=.7,
+    gap=3, ylab=c('Missing Data', 'Pattern'), combined=TRUE
+  )
+```
+
+- write as csv for future use
+
+```{r}
+completed.data %>%
+  write_csv('data.csv')
+```
+
+###EDA
+
+- one superhigh outlier, otherwise roughly normally distributed
+
+```{r}
+completed.data %>%
+  ggplot(aes(ph)) +
+  geom_histogram(bins=30)
+```
+
+```{r}
+completed.data %>%
+  select(-brandcode) %>%
+  cor() %>%
+  corrplot::corrplot(method='circle')
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
