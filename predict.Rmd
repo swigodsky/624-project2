@@ -1,0 +1,75 @@
+---
+title: "predict"
+author: ""
+date: "4/11/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+```
+
+- cleaning evaluation data for predictions
+
+```{r}
+clean <- function(name){
+  name <- gsub('\\s', '', name)
+  name <- tolower(name)
+  return(name)
+}
+
+to.predict <- readxl::read_excel('./data/StudentEvaluation.xlsx') %>%
+  select(-PH) %>% 
+  mutate(`Brand Code` = as.factor(`Brand Code`)) %>%
+  rename_all(funs(clean(.)))
+```
+
+```{r}
+to.predict %>%
+  VIM::aggr(col=c('navyblue', 'yellow'),
+    numbers=TRUE, sortVars=TRUE,
+    labels=names(to.predict), cex.axis=.7,
+    gap=3, ylab=c('Missing Data', 'Pattern'), combined=TRUE
+  )
+```
+
+- combine with training data for better imputation
+
+```{r}
+data <- read_csv('./data/CleanedData.csv') %>%
+  select(-ph) %>%
+  mutate(brandcode = as.factor(brandcode))
+
+combined <- to.predict %>%
+  bind_rows(data)
+```
+
+- impute
+
+```{r}
+imputed <- mice::mice(combined, m=5, maxit=10, seed=123, printFlag=FALSE, remove_collinear=FALSE)
+```
+
+- seperate back out
+
+```{r}
+imputed.data <- mice::complete(imputed, 1) %>%
+  filter(row_number() <= 267)
+
+imputed.data %>%
+  VIM::aggr(col=c('navyblue', 'yellow'),
+    numbers=TRUE, sortVars=TRUE,
+    labels=names(imputed.data), cex.axis=.7,
+    gap=3, ylab=c('Missing Data', 'Pattern'), combined=TRUE
+  )
+```
+
+- write out
+
+```{r}
+imputed.data %>%
+  write_csv('./data/CleanedEvaluation.csv')
+```
+
+

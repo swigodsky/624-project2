@@ -1,0 +1,100 @@
+---
+title: "eda"
+author: ""
+date: "4/11/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+```
+
+```{r}
+data <- read_csv('data/CleanedData.csv')
+```
+
+- response variable has 1 upper outlier that may be problematic
+
+```{r}
+data %>%
+  ggplot(aes(ph)) +
+  geom_histogram(bins=30)
+```
+
+- nothing special out distributions, other than the obvious outlier point mentioned previously
+
+```{r fig.width=14, fig.height=20, message=FALSE}
+data %>%
+  gather(key='key', value='value', -ph) %>%
+  ggplot(aes(value, ph)) +
+  geom_point() +
+  facet_wrap(~key, ncol=4, scales='free') +
+  theme_bw() +
+  theme(axis.text.x = element_blank(),
+        panel.grid.major.x = element_blank(),
+        panel.grid.minor.x = element_blank()
+        )
+```
+
+- only one near zero variance predictor. doesn't look too terrible from distribution
+
+```{r}
+caret::nearZeroVar(data, names=TRUE)
+```
+
+```{r}
+data %>%
+  ggplot(aes(hydpressure1)) +
+  geom_histogram(bins=20)
+```
+
+- suggest removing one upper outlier
+
+```{r}
+data <- data %>%
+  filter(ph < 9)
+```
+
+- split into training/testing
+
+```{r}
+set.seed(123)
+
+part <- caret::createDataPartition(data$ph, p=0.8, list=FALSE)
+training <- data %>%
+  filter(row_number() %in% part)
+testing <- data %>%
+  filter(!row_number() %in% part)
+```
+
+- write out for further processing
+
+```{r}
+training %>%
+  write_csv('./data/training.csv')
+
+testing %>%
+  write_csv('./data/testing.csv')
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

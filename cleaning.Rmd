@@ -1,6 +1,6 @@
 ---
 title: "Project 2"
-author: "Brian Weinfeld"
+author: ""
 date: "April 6, 2019"
 output: html_document
 ---
@@ -11,7 +11,7 @@ library(tidyverse)
 ```
 
 ```{r}
-raw.data <- readxl::read_excel('./StudentData.xlsx') 
+raw.data <- readxl::read_excel('./data/StudentData.xlsx') 
 ```
 
 - 4 values with missing response
@@ -77,46 +77,6 @@ completed.data %>%
 
 ```{r}
 completed.data %>%
-  write_csv('data.csv')
+  write_csv('data/CleanedData.csv')
 ```
-
-###EDA
-
-- one superhigh outlier, otherwise roughly normally distributed
-
-```{r}
-completed.data %>%
-  ggplot(aes(ph)) +
-  geom_histogram(bins=30)
-```
-
-```{r}
-completed.data %>%
-  select(-brandcode) %>%
-  cor() %>%
-  corrplot::corrplot(method='circle')
-```
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
