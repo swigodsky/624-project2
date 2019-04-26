@@ -1,0 +1,191 @@
+
+---
+output:html_document
+
+---
+
+<div class="bar" style="height: 23500px;"></div>
+<div class="bar2 green" style="height: 23500px;"></div>
+<div class="headercorner green">Predictive <br>Analytics</div>
+<style type="text/css">
+.main-container {
+  max-width: 1800px;
+  margin-left: 120px;
+  margin-right: auto;
+}
+</style>
+
+
+
+<div class="header">
+
+  <h1 style="color:white">Dan Wigodsky</h1>
+  <h2 style="color:white">Data 624 Project 2 data exploration</h2>
+  <h2 style="color:white">April 14, 2019</h2>
+
+</div>
+
+```{r load_and_ready,class.source='bob',echo=FALSE}
+#devtools::install_github("yixuan/showtext")
+options(width = 200)
+suppressWarnings(suppressMessages(library(fpp2)))
+suppressWarnings(suppressMessages(library(e1071)))
+suppressWarnings(suppressMessages(library(showtext)))
+suppressWarnings(suppressMessages(library(ggplot2)))
+suppressWarnings(suppressMessages(library(kableExtra)))
+suppressWarnings(suppressMessages(library(expsmooth)))
+suppressWarnings(suppressMessages(library(seasonal)))
+suppressWarnings(suppressMessages(library(mlbench)))
+suppressWarnings(suppressMessages(library(caret)))
+suppressWarnings(suppressMessages(library(corrplot)))
+suppressWarnings(suppressMessages(library(urca)))
+suppressWarnings(suppressMessages(library(AppliedPredictiveModeling)))
+suppressWarnings(suppressMessages(library(bnstruct)))
+suppressWarnings(suppressMessages(library(lars)))
+suppressWarnings(suppressMessages(library(glmnet)))
+suppressWarnings(suppressMessages(library(EnvStats)))
+suppressWarnings(suppressMessages(library(car)))
+
+font_add_google(name = "Corben", family = "corben", regular.wt = 400, bold.wt = 700)
+set.seed(127)
+```  
+
+```{r data,class.source='bob',echo=FALSE,warning=FALSE,message=FALSE, fig.width=7,fig.height=7,fig.showtext = TRUE}
+beverage_set<-read.csv('https://raw.githubusercontent.com/brian-cuny/624-project2/master/data/CleanedData.csv')
+beverage_corr_set<-beverage_set[,-2]
+beverage_set<-beverage_set[-c(690,1093,2355,1942,1897,2083,475,1842),]
+str(beverage_set)
+
+multi_model<-lm(data = beverage_set, ph~.)
+summary(multi_model)
+cutoff <- 4/((nrow(beverage_set)-length(multi_model$coefficients)-2)) 
+plot(multi_model, which=4, cook.levels=cutoff)
+influencePlot(multi_model, id.method="identify", main="Influence Plot", sub="Circle size is proportial to Cook's Distance" )
+
+beverage_set[1093,]
+correl.matrix<-cor(beverage_corr_set, use= "complete.obs")
+corrplot(correl.matrix,method= "color" , type= "upper")
+```  
+  
+We check the variables for multi-collinearity.
+Since some had levels and accounted for more then one df, gvif was used intead of vif.  The threshold should be 25 or 100.  None of our variables passed this threshold.  
+
+```{r vif,class.source='bob',echo=FALSE,warning=FALSE,message=FALSE, fig.width=13,fig.height=5,fig.showtext = TRUE}
+gvif_scaled<-vif(multi_model)[,3]
+gvif_scaled_rows<-rownames(vif(multi_model))
+
+gvif_scaled<-as.data.frame(cbind.data.frame(as.character(gvif_scaled_rows),as.numeric(gvif_scaled)))
+colnames(gvif_scaled)<-c('variable','scaled_gvif')
+gvif_scaled <-gvif_scaled[which(gvif_scaled$scaled_gvif>3.4),]
+ggplot(data=gvif_scaled, aes(y=scaled_gvif,x=variable)) + geom_bar(stat='identity',fill='#b5c6fc') + theme(panel.background = element_rect(fill = '#707996'),text = element_text(family = 'corben',color='#249382',size=38),axis.text.x = element_text(angle = 30, hjust = .9)) + ggtitle('Variables with the highest gvif')
+```  
+
+```{r plots,class.source='bob',echo=FALSE,warning=FALSE,message=FALSE, fig.width=3,fig.height=3,fig.showtext = TRUE}
+
+label_set<-c('ph','brandcode', 'carbvolume', 'fillounces', 'pcvolume', 'carbpressure', 'carbtemp', 'psc', 'pscfill', 'pscco2', 'mnfflow', 'carbpressure1', 'fillpressure', 'hydpressure1', 'hydpressure2', 'hydpressure3', 'hydpressure4', 'fillerlevel', 'fillerspeed', 'temperature', 'usagecont', 'carbflow', 'density', 'mfr', 'balling', 'pressurevacuum', 'oxygenfiller', 'bowlsetpoint', 'pressuresetpoint', 'airpressurer', 'alchrel', 'carbrel', 'ballinglvl')
+
+plotter <- function(df, label_set,lab_num,colorbar='#dee253') {ggplot(df, aes_string(x = label_set[lab_num],y = df$ph)) + geom_point(alpha=.9,color='#65b285') + ylab('ph level')+xlab(label_set[lab_num])+ theme(axis.text.x = element_text(angle = 30, hjust = .9),text = element_text(family ='corben',color='#249382',size=16)) }
+                                                                                                          
+plotter(beverage_set,label_set,2)
+plotter(beverage_set,label_set,3)
+plotter(beverage_set,label_set,4)
+plotter(beverage_set,label_set,5)
+plotter(beverage_set,label_set,6)
+plotter(beverage_set,label_set,7)
+plotter(beverage_set,label_set,8)
+plotter(beverage_set,label_set,9)
+plotter(beverage_set,label_set,10)
+plotter(beverage_set,label_set,11)
+plotter(beverage_set,label_set,12)
+plotter(beverage_set,label_set,13)
+plotter(beverage_set,label_set,14)
+plotter(beverage_set,label_set,15)
+plotter(beverage_set,label_set,16)
+plotter(beverage_set,label_set,17)
+plotter(beverage_set,label_set,18)
+plotter(beverage_set,label_set,19)
+plotter(beverage_set,label_set,20)
+plotter(beverage_set,label_set,21)
+plotter(beverage_set,label_set,22)
+plotter(beverage_set,label_set,23)
+plotter(beverage_set,label_set,24)
+plotter(beverage_set,label_set,25)
+plotter(beverage_set,label_set,26)
+plotter(beverage_set,label_set,27)
+plotter(beverage_set,label_set,28)
+plotter(beverage_set,label_set,29)
+plotter(beverage_set,label_set,30)
+plotter(beverage_set,label_set,31)
+plotter(beverage_set,label_set,32)
+plotter(beverage_set,label_set,33)
+```  
+
+```{r validation-set-separation,class.source='bob',echo=FALSE,warning=FALSE,message=FALSE, fig.width=3,fig.height=3,fig.showtext = TRUE} 
+validation_indices<-sample.int(length(beverage_set$ph),size=.2*length(beverage_set$ph))
+validation_set<-beverage_set[validation_indices,]
+training_set<-beverage_set[-validation_indices,]
+```  
+We look for a kmeans clustering augmented regression model.
+#NOTE: This needs further refining.  A better set of regression vars should be set by forward selection first.
+  
+```{r means-augmented,class.source='bob',echo=FALSE,warning=FALSE,message=FALSE, fig.width=6,fig.height=6,fig.showtext = TRUE}    
+adjusted_r_squared_set<-rep(0,20)
+wss_set<-rep(0,20)
+for (i in 1:20){
+km_model<-kmeans(training_set[,c(3:33)],i*5)
+means_group<-matrix(km_model)
+wss_set[i]<-km_model$tot.withinss
+training_set_kmeans<-cbind(training_set,means_group[1])
+colnames(training_set_kmeans)[34]<-'means_group'
+kmeans_model<-lm(data=training_set_kmeans,ph~.)
+adjusted_r_squared_set[i]<-summary(kmeans_model)[9]
+}
+adjusted_r_squared_set
+
+plot(y=wss_set,x=seq(5,100, by=5),main="within sum of squares by number of means",xlab="number of clusters",ylab="wss")
+#The best model by wss is the 55 means cluster
+km_model<-kmeans(training_set[,c(3,17,21,23,25,30,31,33,7,16)],55)
+training_set_kmeans<-cbind(training_set,means_group[1])
+colnames(training_set_kmeans)[34]<-'means_group'
+kmeans_model<-lm(data=training_set_kmeans,ph~.)
+#create a cluster in the validation set
+means_group<-kmeans(validation_set[,c(3,17,21,23,25,30,31,33,7,16)],55)
+validation_set_km<-cbind(validation_set,means_group[1])
+colnames(validation_set_km)[34]<-'means_group'
+accuracy( predict(kmeans_model, validation_set_km), validation_set_km[,1])[2]
+```  
+  
+This will be RMSE of basic multi-regression as benchmark  
+  
+#NOTE: FORWARD STEPWISE SHOULD BE ADDED
+```{r base-models,class.source='bob',echo=FALSE,warning=FALSE,message=FALSE, fig.width=6,fig.height=6,fig.showtext = TRUE}   
+multi_model<-lm(data = training_set, ph~.)
+summary(multi_model)
+accuracy(predict(multi_model,validation_set),validation_set[,1])
+```
+Clustering enhanced the regression performance with the validation set, but only slightly
+Even more performance was achieved by choosing variables for the clustering analysis.  Variables were chosen by VIF, by scatterplot, and corrplot.  In the scatterplot, variables were chosen that appeared to have a combination of dicrete levels and difference between levels.  In the corrplot, variables with fairly high absolute value correlation with other indep. variables were chosen.
+(3,17,21,23,25,30,31,33,7,16)  -  RMSE = .1305528  vs. RMSE = .1307519
+
+An elastic net model is attempted with the glmnet to try lasso/ridge regressions.  Both shrink the effects of betas.  The lasso selects features and does shrinkage.  The glmnet mixes between the two models.  
+  
+#NOTE: change brand to numeric
+
+```{r elastic net,class.source='bob',echo=FALSE,warning=FALSE,message=FALSE, fig.width=6,fig.height=6,fig.showtext = TRUE}
+#Brand was taken out so elasticnet would run.  It needs to be changed to numeric
+training_set_elnet<-training_set[,-(2)]
+validation_set_elnet<-as.matrix(validation_set[,-(2)])
+elastic_net_model<-glmnet(as.matrix(training_set_elnet[,-1]), training_set_elnet[,1], family="gaussian", alpha=.9, standardize = TRUE)
+plot(elastic_net_model)
+
+elnet_predict<-predict(elastic_net_model, s=elastic_net_model$lambda.1se, newx=validation_set_elnet[,-1])
+RMSE(elnet_predict,validation_set_elnet[,1])
+```
+
+
+
+
+source for Cook's distance plot: https://www.statmethods.net/stats/rdiagnostics.html
+gvif cutoff: https://stats.stackexchange.com/questions/70679/which-variance-inflation-factor-should-i-be-using-textgvif-or-textgvif  --answer by fox
+
+

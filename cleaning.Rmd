@@ -8,75 +8,84 @@ output: html_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
+library(caret)
 ```
 
 ```{r}
-raw.data <- readxl::read_excel('./data/StudentData.xlsx') 
+student.data <- readxl::read_excel('./data/StudentData.xlsx')
+student.evaluation <- readxl::read_excel('./data/StudentEvaluation.xlsx')
 ```
 
 - 4 values with missing response
 - the rest of the missing data is small enough and spread out enough to impute
 
 ```{r}
-raw.data %>%
-  VIM::aggr(col=c('navyblue', 'yellow'),
-    numbers=TRUE, sortVars=TRUE,
-    labels=names(raw.data), cex.axis=.7,
-    gap=3, ylab=c('Missing Data', 'Pattern'), combined=TRUE
-  )
+missing.data.plot <- function(data){
+  data %>%
+    VIM::aggr(col=c('navyblue', 'yellow'),
+      numbers=TRUE, sortVars=TRUE,
+      labels=names(data), cex.axis=.7,
+      gap=3, ylab=c('Missing Data', 'Pattern'), combined=TRUE
+    )
+}
+
+missing.data.plot(student.data)
 ```
 
-- separate answers out
+- eda suggests removing 4 training values with PH missing and 1 extreme outlier (remove total 5 rows)
 
 ```{r}
-ph <- raw.data$PH
-to.impute <- raw.data %>%
-  select(-PH) %>%
-  mutate(`Brand Code` = as.factor(`Brand Code`))
+student.data <- student.data %>%
+  filter(!is.na(student.data$PH),
+         student.data$PH < 9)
 ```
 
-- clean column names, to lowercase and remove spaces
+- data prep pipeline
 
 ```{r}
-clean <- function(name){
+clean.cols <- function(name){
   name <- gsub('\\s', '', name)
   name <- tolower(name)
   return(name)
 }
 
-to.impute <- to.impute %>%
-  rename_all(funs(clean(.)))
-```
+pipeline <- function(data){
+  ph <- data$PH
+  
+  data <- data %>%
+    select(-PH) %>%
+    mutate(`Brand Code` = as.factor(`Brand Code`)) %>%
+    rename_all(list(f = ~clean.cols(.))) %>%
+    mice::mice(m=5, maxit=10, seed=123, printFlag=FALSE) %>%
+    mice::complete(1)
+  
+    x <- predict(dummyVars("~ .", data=data), newdata=data) %>%
+        as_tibble()
+  
+  return(cbind(ph, x))
+}
 
-- impute data with mice
-
-```{r}
-imputed.data <- mice::mice(to.impute, m=5, maxit=10, seed=123, printFlag=FALSE)
-completed.data <- cbind(ph, mice::complete(imputed.data, 1)) 
-```
-
-- drop 4 cases missing response variable
-
-```{r}
-completed.data <- completed.data %>%
-  filter(complete.cases(.)) 
+student.data.complete <- pipeline(student.data)
+student.evaluation.complete <- pipeline(student.evaluation)
 ```
 
 - verify all data imputed and present
 
 ```{r}
-completed.data %>%
-  VIM::aggr(col=c('navyblue', 'yellow'),
-    numbers=TRUE, sortVars=TRUE,
-    labels=names(completed.data), cex.axis=.7,
-    gap=3, ylab=c('Missing Data', 'Pattern'), combined=TRUE
-  )
+missing.data.plot(student.data.complete)
+```
+
+```{r}
+missing.data.plot(student.evaluation.complete)
 ```
 
 - write as csv for future use
 
 ```{r}
-completed.data %>%
-  write_csv('data/CleanedData.csv')
+student.data.complete %>%
+  write_csv('./data/student_data_complete.csv')
+
+student.evaluation.complete %>%
+  write_csv('./data/student_evaluation_complete.csv')
 ```
 

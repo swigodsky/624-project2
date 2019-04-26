@@ -11,7 +11,7 @@ library(tidyverse)
 ```
 
 ```{r}
-data <- read_csv('data/CleanedData.csv')
+data <- read_csv('./data/student_data_complete.csv')
 ```
 
 - response variable has 1 upper outlier that may be problematic
@@ -48,53 +48,4 @@ data %>%
   ggplot(aes(hydpressure1)) +
   geom_histogram(bins=20)
 ```
-
-- suggest removing one upper outlier
-
-```{r}
-data <- data %>%
-  filter(ph < 9)
-```
-
-- split into training/testing
-
-```{r}
-set.seed(123)
-
-part <- caret::createDataPartition(data$ph, p=0.8, list=FALSE)
-training <- data %>%
-  filter(row_number() %in% part)
-testing <- data %>%
-  filter(!row_number() %in% part)
-```
-
-- write out for further processing
-
-```{r}
-training %>%
-  write_csv('./data/training.csv')
-
-testing %>%
-  write_csv('./data/testing.csv')
-```
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 

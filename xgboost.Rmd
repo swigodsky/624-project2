@@ -1,0 +1,109 @@
+---
+title: "xgboost"
+author: "Brian Weinfeld"
+date: "4/25/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE, cache = TRUE)
+library(tidyverse)
+library(xgboost)
+library(caret)
+```
+
+- load data sets
+
+```{r}
+student.data.complete <- read_csv(file='./data/student_data_complete.csv')
+student.evaluation.complete <- read_csv(file='./data/student_evaluation_complete.csv')
+```
+
+- train/test split
+
+```{r}
+set.seed(123)
+
+part <- createDataPartition(student.data.complete$ph, p=0.8, list=FALSE)
+training <- student.data.complete %>%
+  filter(row_number() %in% part)
+validation <- student.data.complete %>%
+  filter(!row_number() %in% part)
+```
+
+- prepare data from training by turning into lists
+
+```{r}
+listify <- function(data){
+  return(list('y' = data$ph, 'x' = data %>% select(-ph)))
+}
+
+student.data.complete <- listify(student.data.complete)
+student.evaluation.complete <- listify(student.evaluation.complete)
+training <- listify(training)
+validation <- listify(validation)
+```
+
+- hyper parameters (selected via exploration)
+
+```{r}
+grid <- expand.grid(nrounds = 2500,
+                    max_depth = 6,
+                    eta = 0.03,
+                    gamma = 0,
+                    colsample_bytree = 1,
+                    min_child_weight = 1,
+                    subsample = 0.5)
+
+control <- trainControl(method='cv',
+                        number=10,
+                        allowParallel = TRUE)
+```
+
+- train model
+
+```{r}
+model <- train(x = training$x,
+             y = training$y,
+             method = 'xgbTree',
+             tuneGrid = grid,
+             metric = 'RMSE',
+             trControl = control)
+
+model$results
+```
+
+- most important predictors
+
+```{r}
+model %>%
+  varImp() %>%
+  plot()
+```
+
+- validation rmse (only run on final, best model)
+
+```{r}
+#Metrics::rmse(predict(model, newdata=validation$x), validation$y)
+```
+
+- retraining on ALL data
+
+```{r}
+final.model <- train(x = student.data.complete$x,
+                     y = student.data.complete$y,
+                     method = 'xgbTree',
+                     tuneGrid = grid,
+                     metric = 'RMSE')
+```
+
+- final predictions
+
+```{r}
+predictions <- predict(final.model, newdata=student.evaluation.complete$x)
+```
+
+```{r}
+predictions
+```
+
