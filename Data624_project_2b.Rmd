@@ -1,0 +1,342 @@
+
+---
+output: 
+  html_document:
+    fig_retina: 1
+    css: r_style.css
+    includes:
+    in_header: header.html
+
+---
+
+<div class="bar" style="height: 23500px;"></div>
+<div class="bar2 green" style="height: 23500px;"></div>
+<div class="headercorner green">Predictive <br>Analytics</div>
+<style type="text/css">
+.main-container {
+  max-width: 1800px;
+  margin-left: 120px;
+  margin-right: auto;
+}
+</style>
+
+
+
+<div class="header">
+
+  <h1 style="color:white">Dan Wigodsky</h1>
+  <h2 style="color:white">Data 624 Project 2 data exploration</h2>
+  <h2 style="color:white">April 14, 2019</h2>
+
+</div>
+
+```{r load_and_ready,class.source='bob',echo=FALSE}
+#devtools::install_github("yixuan/showtext")
+options(width = 200)
+suppressWarnings(suppressMessages(library(fpp2)))
+suppressWarnings(suppressMessages(library(e1071)))
+suppressWarnings(suppressMessages(library(showtext)))
+suppressWarnings(suppressMessages(library(ggplot2)))
+suppressWarnings(suppressMessages(library(kableExtra)))
+suppressWarnings(suppressMessages(library(expsmooth)))
+suppressWarnings(suppressMessages(library(seasonal)))
+suppressWarnings(suppressMessages(library(mlbench)))
+suppressWarnings(suppressMessages(library(caret)))
+suppressWarnings(suppressMessages(library(corrplot)))
+suppressWarnings(suppressMessages(library(urca)))
+suppressWarnings(suppressMessages(library(AppliedPredictiveModeling)))
+suppressWarnings(suppressMessages(library(bnstruct)))
+suppressWarnings(suppressMessages(library(lars)))
+suppressWarnings(suppressMessages(library(glmnet)))
+suppressWarnings(suppressMessages(library(EnvStats)))
+suppressWarnings(suppressMessages(library(car)))
+suppressWarnings(suppressMessages(library(xgboost)))
+suppressWarnings(suppressMessages(library(tidyverse)))
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE, cache = TRUE)
+
+font_add_google(name = "Corben", family = "corben", regular.wt = 400, bold.wt = 700)
+set.seed(127)
+```  
+
+- load data sets
+
+
+
+```{r}
+
+student.data.complete <- read.csv('https://raw.githubusercontent.com/brian-cuny/624-project2/master/data/student_data_complete.csv', stringsAsFactors = FALSE)
+
+student.evaluation.complete <- read.csv('https://raw.githubusercontent.com/brian-cuny/624-project2/master/data/student_evaluation_complete.csv', stringsAsFactors = FALSE)
+student.data.complete_df <- student.data.complete
+```
+
+
+
+- train/test split
+
+
+
+```{r}
+
+set.seed(123)
+
+
+
+part <- createDataPartition(student.data.complete$ph, p=0.8, list=FALSE)
+
+training <- student.data.complete %>%
+
+  filter(row_number() %in% part)
+
+validation <- student.data.complete %>%
+
+  filter(!row_number() %in% part)
+
+```
+
+
+
+- prepare data from training by turning into lists
+
+
+
+```{r}
+
+listify <- function(data){
+
+  return(list('y' = data$ph, 'x' = data %>% select(-ph)))
+
+}
+
+
+
+student.data.complete <- listify(student.data.complete)
+
+student.evaluation.complete <- listify(student.evaluation.complete)
+
+training <- listify(training)
+
+validation <- listify(validation)
+
+```
+
+
+
+- hyper parameters (selected via exploration)
+
+
+
+```{r}
+
+grid <- expand.grid(nrounds = 2500,
+
+                    max_depth = 6,
+
+                    eta = 0.03,
+
+                    gamma = 0,
+
+                    colsample_bytree = 1,
+
+                    min_child_weight = 1,
+
+                    subsample = 0.5)
+
+
+
+control <- trainControl(method='cv',
+
+                        number=10,
+
+                        allowParallel = TRUE)
+
+```
+
+
+
+- train model
+
+
+
+```{r}
+
+model <- train(x = training$x,
+
+             y = training$y,
+
+             method = 'xgbTree',
+
+             tuneGrid = grid,
+
+             metric = 'RMSE',
+
+             trControl = control)
+
+
+
+model$results
+
+```
+
+- error for training and test set
+
+```{r}
+xgbPred <- predict(model, newdata = validation$x)
+postResample(pred=xgbPred,obs=validation$y) 
+
+error_xgb <- data.frame(list(RMSE=c(0.102,0.095),RSquared=c(0.652,0.701),MAE=c(0.740,0.071)))
+rownames(error_xgb) <- c("Training Set","Test Set")
+kable(error_xgb)
+```
+
+
+
+- most important predictors
+
+
+
+```{r}
+
+model %>%
+
+  varImp() %>%
+
+  plot()
+
+```
+
+- Support Vector Machine
+```{r, message=FALSE, warning=FALSE,cache=TRUE}
+library(kernlab)
+set.seed(200)
+svmRTuned <- train(x = training$x,
+
+                  y = training$y,
+                   
+                   method="svmRadial", 
+                   
+                   preProc=c("center","scale"),
+                   
+                   tuneLength = 14,
+                   
+                   trControl = trainControl(method="cv"))
+
+svmRTuned
+svmRTuned$finalModel
+```
+- Error for Training Set and Validation Set
+
+
+```{r}
+svmPred <- predict(svmRTuned, newdata = validation$x)
+postResample(pred=svmPred,obs=validation$y) 
+
+error_svm <- data.frame(list(RMSE=c(0.117,0.111),RSquared=c(0.543,0.592),MAE=c(0.827,0.860)))
+rownames(error_svm) <- c("Training Set","Test Set")
+kable(error_svm)
+```
+
+- most important predictors
+
+```{r}
+
+svmRTuned %>%
+
+  varImp() %>%
+
+  plot()
+
+```
+
+
+- random forest
+
+```{r warning=FALSE, message=FALSE, cache=TRUE}
+library(randomForest)
+set.seed(200)
+rf <- randomForest(x = training$x,
+
+                   y = training$y, 
+                       
+                   importance=TRUE,
+                       
+                   ntree=1000)
+
+best_tree <- which(rf$mse==min(rf$mse))
+sqrt(rf$mse[best_tree])
+rf$rsq[best_tree]
+```
+
+- Error for Training Set and Validation Set
+
+
+```{r}
+rfPred <- predict(rf, newdata = validation$x)
+postResample(pred=rfPred,obs=validation$y) 
+
+error_rf <- data.frame(list(RMSE=c(0.099,0.098),RSquared=c(0.700,0.592)))
+rownames(error_rf) <- c("Training Set","Test Set")
+kable(error_rf)
+```
+
+- most important predictors
+
+
+
+```{r}
+
+rf$importance
+
+```
+
+
+- validation rmse (only run on final, best model)
+
+
+
+```{r}
+
+#Metrics::rmse(predict(model, newdata=validation$x), validation$y)
+
+```
+
+
+
+- retraining on ALL data
+
+
+
+```{r}
+
+final.model <- train(x = student.data.complete$x,
+
+                     y = student.data.complete$y,
+
+                     method = 'xgbTree',
+
+                     tuneGrid = grid,
+
+                     metric = 'RMSE')
+
+```
+
+
+
+- final predictions
+
+
+
+```{r}
+
+predictions <- predict(final.model, newdata=student.evaluation.complete$x)
+
+```
+
+
+
+```{r}
+
+predictions
+
+```
+
